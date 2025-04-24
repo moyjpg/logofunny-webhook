@@ -1,29 +1,63 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const Replicate = require('replicate');
+const axios = require('axios');
 
 const app = express();
 const port = process.env.PORT || 3000;
-
-// 解析 application/json 请求体
-app.use(bodyParser.json());
-
-// 根路径测试接口
-app.get('/', (req, res) => {
-  res.send('🔥 Logofunny Webhook is running!');
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN,
 });
 
-// webhook 接口
+app.use(bodyParser.json());
+
+// 测试是否正常运行
+app.get('/', (req, res) => {
+  res.send('Logofunny Webhook is running!');
+});
+
+// 处理 Fluent Forms webhook 请求
 app.post('/webhook', async (req, res) => {
   try {
-    console.log('✅ Received webhook data:', req.body);
-    res.status(200).send({ message: 'Webhook received successfully' });
+    console.log('📥 Received webhook data:', req.body);
+
+    const {
+      ['upload-1']: image_url,
+      ['textarea-1']: brand,
+      ['textarea-2']: subtitle,
+      ['checkbox-1']: styles,
+      ['radio-1']: color,
+      ['textarea-3']: keywords
+    } = req.body;
+
+    const prompt = `Design a logo for "${brand}", tagline "${subtitle}". Style: ${styles.join(', ')}, color theme: ${color}. Keywords: ${keywords}`;
+
+    const output = await replicate.run(
+      "jagilley/controlnet",
+      {
+        input: {
+          image: image_url,
+          prompt: prompt,
+          structure: "canny",
+          num_outputs: 1,
+          num_inference_steps: 20,
+          guidance_scale: 9,
+        }
+      }
+    );
+
+    console.log('✅ Replicate output:', output);
+
+    res.status(200).send({
+      message: 'Webhook received successfully',
+      image: output[0]
+    });
   } catch (error) {
-    console.error('❌ Error handling webhook:', error);
-    res.status(500).send({ message: 'Internal Server Error' });
+    console.error('❌ Error processing webhook:', error);
+    res.status(500).send({ error: 'Failed to process request' });
   }
 });
 
-// 启动服务器
 app.listen(port, () => {
-  console.log(`🚀 Server is running on port ${port}`);
+  console.log(`🔥 Server is running on port ${port}`);
 });
