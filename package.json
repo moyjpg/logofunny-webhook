@@ -1,14 +1,12 @@
 {
   "name": "logofunny-webhook",
   "version": "1.0.0",
-  "description": "Webhook backend for AI logo generation",
+  "description": "Minimal webhook backend for AI logo generation",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "body-parser": "^1.20.2",
-    "replicate": "^0.19.4"
+    "express": "^4.18.2"
   }
 }
