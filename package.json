@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "description": "Webhook backend for AI logo generation",
   "main": "index.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "body-parser": "^1.20.2",
-    "replicate": "^0.17.0"
+    "axios": "^1.6.7",
+    "form-data": "^4.0.0"
   }
 }
