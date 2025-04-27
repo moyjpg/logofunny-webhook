@@ -8,6 +8,7 @@ require('dotenv').config();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.post('/webhook', upload.none(), async (req, res) => {
     try {
@@ -20,15 +21,15 @@ app.post('/webhook', upload.none(), async (req, res) => {
             ['textarea-3']: keywords
         } = req.body;
 
-        const prompt = `Create a modern logo for the brand "${brandName}". Tagline: "${tagline}". Keywords: ${keywords}. Preferred colors: ${Array.isArray(colors) ? colors.join(', ') : colors}. Style: ${style}.`;
+        const prompt = `Generate a logo for brand "${brandName}" with style "${style}". Keywords: ${keywords}. Prefer colors: ${Array.isArray(colors) ? colors.join(', ') : colors}.`;
 
         const response = await axios.post(
             'https://api.replicate.com/v1/predictions',
             {
-                version: "67ed00e8", // 👈 用logoai模型的版本
+                version: "67ed00e8",  // 只要 version id
                 input: {
-                    prompt: prompt,
-                    image: imageUrl
+                    image: imageUrl,
+                    prompt: prompt
                 }
             },
             {
@@ -39,18 +40,18 @@ app.post('/webhook', upload.none(), async (req, res) => {
             }
         );
 
-        const outputUrl = response.data?.prediction?.output?.[0] || null;
+        const output = response.data?.output?.[0] || null;
 
         res.json({ 
-            brand: brandName,
+            brand: brandName, 
             tagline: tagline,
-            image: outputUrl
+            image: output
         });
     } catch (error) {
-        console.error('Error:', error.response ? error.response.data : error.message);
+        console.error(error?.response?.data || error.message);
         res.status(500).json({ 
             error: "Failed to process request", 
-            details: error.response ? error.response.data : error.message 
+            details: error?.response?.data || error.message 
         });
     }
 });
