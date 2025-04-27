@@ -1,20 +1,24 @@
 const express = require('express');
 const multer = require('multer');
-const bodyParser = require('body-parser');
-const Replicate = require('replicate');
 const cors = require('cors');
+const Replicate = require('replicate');
+const bodyParser = require('body-parser');
 
 const app = express();
 const upload = multer();
-const port = process.env.PORT || 10000;
+
+// 允许跨域
+app.use(cors());
+
+// 解析 application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// 解析 application/json
+app.use(bodyParser.json());
 
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
-
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 
 app.post('/webhook', upload.none(), async (req, res) => {
   try {
@@ -22,40 +26,41 @@ app.post('/webhook', upload.none(), async (req, res) => {
       'upload-1': imageUrl, 
       'textarea-1': brandName, 
       'textarea-2': tagline, 
-      'checkbox-1': colors, 
-      'radio-1': style, 
+      'checkbox-1': selectedColors, 
+      'radio-1': styleChoice, 
       'textarea-3': keywords 
     } = req.body;
 
-    if (!imageUrl || !brandName) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
+    console.log('Received form data:', { imageUrl, brandName, tagline, selectedColors, styleChoice, keywords });
 
-    const prompt = `
-      Generate a logo for a brand called "${brandName}" with the tagline "${tagline}". 
-      Preferred colors: ${Array.isArray(colors) ? colors.join(', ') : colors}.
-      Style: ${style}.
-      Keywords to inspire the logo: ${keywords}.
-    `;
+    const input = {
+      image: imageUrl,
+      prompt: `${brandName}, ${tagline}, ${keywords}, Style: ${styleChoice}, Colors: ${selectedColors}`,
+      a_prompt: "best quality, extremely detailed, professional design",
+      n_prompt: "lowres, bad anatomy, bad proportions, blurry, poorly drawn",
+      num_samples: 1,
+      image_resolution: "512",
+      ddim_steps: 20,
+      scale: 9,
+      strength: 1,
+      seed: null,
+    };
 
     const output = await replicate.run(
-      "jagilley/controlnet", // 你使用的模型
-      {
-        input: {
-          image: imageUrl,
-          prompt: prompt,
-          structure: "edges", // 或根据需要改，比如可以用 "canny"
-        }
-      }
+      "jagilley/controlnet:6241993b5c6e61d60be29323f7d5bbde88c7d329e86ad38aa5f8f5a166f79956",
+      { input }
     );
 
-    res.json({ image: output });
+    console.log('Replicate output:', output);
+
+    res.json({ success: true, output });
   } catch (error) {
     console.error('Error processing request:', error);
-    res.status(500).json({ error: 'Failed to process request' });
+    res.status(500).json({ error: "Failed to process request" });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
