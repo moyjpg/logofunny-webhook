@@ -2,10 +2,10 @@ const express = require('express');
 const multer = require('multer');
 const axios = require('axios');
 const cors = require('cors');
-require('dotenv').config();
-
 const app = express();
 const upload = multer();
+require('dotenv').config();
+
 app.use(cors());
 app.use(express.json());
 
@@ -20,17 +20,12 @@ app.post('/webhook', upload.none(), async (req, res) => {
             ['textarea-3']: keywords
         } = req.body;
 
-        const prompt = `
-        Create a professional logo for a brand named "${brandName}" with the tagline "${tagline}". 
-        Design style: ${style}. 
-        Color preferences: ${Array.isArray(colors) ? colors.join(', ') : colors}. 
-        Keywords to guide the design: ${keywords}.
-        `;
+        const prompt = `Create a modern logo for the brand "${brandName}". Tagline: "${tagline}". Keywords: ${keywords}. Preferred colors: ${Array.isArray(colors) ? colors.join(', ') : colors}. Style: ${style}.`;
 
-        const replicateResponse = await axios.post(
+        const response = await axios.post(
             'https://api.replicate.com/v1/predictions',
             {
-                version: "你的LogoAI模型version ID", 
+                version: "67ed00e8", // 👈 用logoai模型的版本
                 input: {
                     prompt: prompt,
                     image: imageUrl
@@ -44,19 +39,18 @@ app.post('/webhook', upload.none(), async (req, res) => {
             }
         );
 
-        const outputUrl = replicateResponse.data?.prediction?.output || replicateResponse.data?.output;
+        const outputUrl = response.data?.prediction?.output?.[0] || null;
 
-        res.json({
+        res.json({ 
             brand: brandName,
             tagline: tagline,
-            logo_url: outputUrl
+            image: outputUrl
         });
-
     } catch (error) {
-        console.error('Error details:', error?.response?.data || error.message);
+        console.error('Error:', error.response ? error.response.data : error.message);
         res.status(500).json({ 
-            error: "Failed to process request",
-            details: error?.response?.data || error.message
+            error: "Failed to process request", 
+            details: error.response ? error.response.data : error.message 
         });
     }
 });
