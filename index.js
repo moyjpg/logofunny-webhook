@@ -2,12 +2,17 @@ const express = require('express');
 const multer = require('multer');
 const axios = require('axios');
 const cors = require('cors');
+const replicate = require('replicate');
 const app = express();
 const upload = multer();
 require('dotenv').config();
 
 app.use(cors());
 app.use(express.json());
+
+const replicateClient = new replicate({
+    auth: process.env.REPLICATE_API_TOKEN
+});
 
 app.post('/webhook', upload.none(), async (req, res) => {
     try {
@@ -22,33 +27,23 @@ app.post('/webhook', upload.none(), async (req, res) => {
 
         const prompt = `Generate a logo for brand "${brandName}" with style "${style}". Keywords: ${keywords}. Prefer colors: ${Array.isArray(colors) ? colors.join(', ') : colors}.`;
 
-        const response = await axios.post(
-            'https://api.replicate.com/v1/predictions',
+        const output = await replicateClient.run(
+            "timothybrooks/instruct-pix2pix:9d71e50f9344f03a3b5db5786efc0eb06c865b6db92712c28aa06d8a44f4a5bb",
             {
-                version: "你用的正确模型的version ID", // ★★★ 记得填正确的 ★★★
                 input: {
                     image: imageUrl,
                     prompt: prompt
                 }
-            },
-            {
-                headers: {
-                    Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
-                    'Content-Type': 'application/json'
-                }
             }
         );
 
-        const prediction = response.data;
-
-        res.json({
+        res.json({ 
+            prediction: output,  // 这是图片生成地址数组
             brandName: brandName,
-            tagline: tagline,
-            imageUrl: prediction?.output ? prediction.output[0] : null,
-            predictionRaw: prediction // 如果你前端想调试或者需要更多数据，这里也留着
+            tagline: tagline
         });
     } catch (error) {
-        console.error(error.response ? error.response.data : error.message);
+        console.error(error);
         res.status(500).json({ 
             error: "Failed to process request", 
             details: error.response ? error.response.data : error.message 
