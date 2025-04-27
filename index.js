@@ -1,39 +1,55 @@
-import express from 'express';
-import formidable from 'express-formidable';
-import fetch from 'node-fetch';
+const express = require('express');
+const multer = require('multer');
+const bodyParser = require('body-parser');
+const Replicate = require('replicate');
+const cors = require('cors');
 
 const app = express();
+const upload = multer();
 const port = process.env.PORT || 10000;
 
-app.use(formidable());
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN,
+});
 
-app.post('/webhook', async (req, res) => {
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+app.post('/webhook', upload.none(), async (req, res) => {
   try {
-    const data = req.fields;
-    console.log('Received form data:', data);
+    const { 
+      'upload-1': imageUrl, 
+      'textarea-1': brandName, 
+      'textarea-2': tagline, 
+      'checkbox-1': colors, 
+      'radio-1': style, 
+      'textarea-3': keywords 
+    } = req.body;
 
-    const response = await fetch('https://api.replicate.com/v1/models/jagilley/controlnet/predictions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    if (!imageUrl || !brandName) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const prompt = `
+      Generate a logo for a brand called "${brandName}" with the tagline "${tagline}". 
+      Preferred colors: ${Array.isArray(colors) ? colors.join(', ') : colors}.
+      Style: ${style}.
+      Keywords to inspire the logo: ${keywords}.
+    `;
+
+    const output = await replicate.run(
+      "jagilley/controlnet", // 你使用的模型
+      {
         input: {
-          image: data['upload-1'],
-          brand_name: data['textarea-1'],
-          tagline: data['textarea-2'],
-          brand_keywords: data['textarea-3'],
-          colors: Array.isArray(data['checkbox-1']) ? data['checkbox-1'] : [data['checkbox-1']],
-          style: data['radio-1'],
+          image: imageUrl,
+          prompt: prompt,
+          structure: "edges", // 或根据需要改，比如可以用 "canny"
         }
-      })
-    });
+      }
+    );
 
-    const result = await response.json();
-    console.log('Replicate result:', result);
-
-    res.json(result);
+    res.json({ image: output });
   } catch (error) {
     console.error('Error processing request:', error);
     res.status(500).json({ error: 'Failed to process request' });
@@ -41,5 +57,5 @@ app.post('/webhook', async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`Server is running on port ${port}`);
 });
