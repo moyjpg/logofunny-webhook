@@ -41,7 +41,7 @@ app.post('/webhook', upload.none(), async (req, res) => {
         const replicateResponse = await axios.post(
             'https://api.replicate.com/v1/predictions',
             {
-                version: "7be03b29380c20d0575a5d25e2a3c5421fb63b87e8ef7fada2b2a73748c2ec85",
+                version: "30c10db916a6f8efce20493f5d61ee27491ab2a60437c13c588468b9810ec23f",
                 input: {
                     image: base64Image,
                     prompt: prompt,
