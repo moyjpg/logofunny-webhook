@@ -2,56 +2,61 @@ const express = require('express');
 const multer = require('multer');
 const axios = require('axios');
 const cors = require('cors');
-const replicate = require('replicate');
-const app = express();
-const upload = multer();
 require('dotenv').config();
 
+const app = express();
+const upload = multer();
 app.use(cors());
 app.use(express.json());
 
-const replicateClient = new replicate({
-    auth: process.env.REPLICATE_API_TOKEN
-});
-
 app.post('/webhook', upload.none(), async (req, res) => {
-    try {
-        const { 
-            ['upload-1']: imageUrl,
-            ['textarea-1']: brandName,
-            ['textarea-2']: tagline,
-            ['checkbox-1']: colors,
-            ['radio-1']: style,
-            ['textarea-3']: keywords
-        } = req.body;
+  try {
+    const {
+      ['upload-1']: imageUrl,
+      ['textarea-1']: brandName,
+      ['textarea-2']: tagline,
+      ['checkbox-1']: colors,
+      ['radio-1']: style,
+      ['textarea-3']: keywords
+    } = req.body;
 
-        const prompt = `Generate a logo for brand "${brandName}" with style "${style}". Keywords: ${keywords}. Prefer colors: ${Array.isArray(colors) ? colors.join(', ') : colors}.`;
+    const prompt = `Generate a logo for brand "${brandName}" with style "${style}", tagline "${tagline}", and keywords "${keywords}". Prefer colors: ${Array.isArray(colors) ? colors.join(', ') : colors}.`;
 
-        const output = await replicateClient.run(
-            "timothybrooks/instruct-pix2pix:9d71e50f9344f03a3b5db5786efc0eb06c865b6db92712c28aa06d8a44f4a5bb",
-            {
-                input: {
-                    image: imageUrl,
-                    prompt: prompt
-                }
-            }
-        );
+    const replicateResponse = await axios.post(
+      'https://api.replicate.com/v1/predictions',
+      {
+        version: "30c1d0b916af8efece20493f5d61ee27491ab2a06437c13c588468b9810ec23f",  // instruct-pix2pix最新version id
+        input: {
+          image: imageUrl,
+          prompt: prompt
+        }
+      },
+      {
+        headers: {
+          Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-        res.json({ 
-            prediction: output,  // 这是图片生成地址数组
-            brandName: brandName,
-            tagline: tagline
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ 
-            error: "Failed to process request", 
-            details: error.response ? error.response.data : error.message 
-        });
-    }
+    const outputImageUrl = replicateResponse.data?.prediction?.output?.[0] || replicateResponse.data?.output?.[0];
+
+    res.json({
+      brandName: brandName,
+      tagline: tagline,
+      generatedImageUrl: outputImageUrl
+    });
+
+  } catch (error) {
+    console.error(error?.response?.data || error.message);
+    res.status(500).json({
+      error: "Failed to process request",
+      details: error?.response?.data || error.message
+    });
+  }
 });
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
