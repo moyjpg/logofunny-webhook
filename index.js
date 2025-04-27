@@ -7,13 +7,13 @@ const bodyParser = require('body-parser');
 const app = express();
 const upload = multer();
 
-// 允许跨域
+// Enable CORS
 app.use(cors());
 
-// 解析 application/x-www-form-urlencoded
+// Support application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// 解析 application/json
+// Support application/json
 app.use(bodyParser.json());
 
 const replicate = new Replicate({
@@ -22,41 +22,50 @@ const replicate = new Replicate({
 
 app.post('/webhook', upload.none(), async (req, res) => {
   try {
-    const { 
-      'upload-1': imageUrl, 
-      'textarea-1': brandName, 
-      'textarea-2': tagline, 
-      'checkbox-1': selectedColors, 
-      'radio-1': styleChoice, 
-      'textarea-3': keywords 
+    const {
+      'upload-1': imageUrl,
+      'textarea-1': brandName,
+      'textarea-2': tagline,
+      'checkbox-1': colors,
+      'radio-1': style,
+      'textarea-3': keywords
     } = req.body;
 
-    console.log('Received form data:', { imageUrl, brandName, tagline, selectedColors, styleChoice, keywords });
+    console.log('Received data:', {
+      imageUrl,
+      brandName,
+      tagline,
+      colors,
+      style,
+      keywords
+    });
 
-    const input = {
-      image: imageUrl,
-      prompt: `${brandName}, ${tagline}, ${keywords}, Style: ${styleChoice}, Colors: ${selectedColors}`,
-      a_prompt: "best quality, extremely detailed, professional design",
-      n_prompt: "lowres, bad anatomy, bad proportions, blurry, poorly drawn",
-      num_samples: 1,
-      image_resolution: "512",
-      ddim_steps: 20,
-      scale: 9,
-      strength: 1,
-      seed: null,
-    };
+    const prompt = `${brandName}, ${tagline}, keywords: ${keywords}, style: ${style}, colors: ${colors}`;
 
     const output = await replicate.run(
       "jagilley/controlnet:6241993b5c6e61d60be29323f7d5bbde88c7d329e86ad38aa5f8f5a166f79956",
-      { input }
+      {
+        input: {
+          image: imageUrl,
+          prompt: prompt,
+          a_prompt: "best quality, extremely detailed, professional logo design",
+          n_prompt: "lowres, bad anatomy, bad proportions, blurry, poorly drawn",
+          num_samples: 1,
+          image_resolution: "512",
+          ddim_steps: 20,
+          scale: 9,
+          strength: 1,
+          seed: null,
+        }
+      }
     );
 
     console.log('Replicate output:', output);
 
     res.json({ success: true, output });
   } catch (error) {
-    console.error('Error processing request:', error);
-    res.status(500).json({ error: "Failed to process request" });
+    console.error('Processing error:', error);
+    res.status(500).json({ error: "Failed to process request", details: error.message });
   }
 });
 
