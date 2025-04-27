@@ -1,7 +1,7 @@
 {
   "name": "logofunny-webhook",
   "version": "1.0.0",
-  "description": "Webhook backend for AI logo generation",
+  "description": "Webhook backend for AI logo generation using instruct-pix2pix",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
@@ -11,9 +11,8 @@
     "axios": "^1.6.7",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "express-formidable": "^1.2.0",
-    "multer": "^1.4.5-lts.2",
-    "replicate": "^0.24.0"
+    "multer": "^1.4.5-lts.1"
   }
 }
