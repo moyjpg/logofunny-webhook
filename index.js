@@ -1,42 +1,45 @@
-
-const express = require('express');
-const bodyParser = require('body-parser');
-const Replicate = require('replicate');
-const axios = require('axios');
-const FormData = require('form-data');
+import express from 'express';
+import formidable from 'express-formidable';
+import fetch from 'node-fetch';
 
 const app = express();
 const port = process.env.PORT || 10000;
 
-app.use(bodyParser.json({ limit: '50mb' }));
-
-const replicate = new Replicate({
-    auth: process.env.REPLICATE_API_TOKEN,
-});
+app.use(formidable());
 
 app.post('/webhook', async (req, res) => {
-    try {
-        const { "upload-1": imageUrl, "textarea-1": brandName, "textarea-2": tagline, "checkbox-1": colors, "radio-1": style, "textarea-3": keywords } = req.body;
+  try {
+    const data = req.fields;
+    console.log('Received form data:', data);
 
-        const prompt = `Logo design for brand "${brandName}" with tagline "${tagline}". Style: ${style}. Keywords: ${keywords}. Colors: ${colors.join(', ')}.`;
+    const response = await fetch('https://api.replicate.com/v1/models/jagilley/controlnet/predictions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        input: {
+          image: data['upload-1'],
+          brand_name: data['textarea-1'],
+          tagline: data['textarea-2'],
+          brand_keywords: data['textarea-3'],
+          colors: Array.isArray(data['checkbox-1']) ? data['checkbox-1'] : [data['checkbox-1']],
+          style: data['radio-1'],
+        }
+      })
+    });
 
-        const output = await replicate.run(
-            "jagilley/controlnet",
-            {
-                input: {
-                    image: imageUrl,
-                    prompt: prompt,
-                },
-            }
-        );
+    const result = await response.json();
+    console.log('Replicate result:', result);
 
-        res.json({ image: output });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Failed to process request" });
-    }
+    res.json(result);
+  } catch (error) {
+    console.error('Error processing request:', error);
+    res.status(500).json({ error: 'Failed to process request' });
+  }
 });
 
 app.listen(port, () => {
-    console.log(`🔥 Server is running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
